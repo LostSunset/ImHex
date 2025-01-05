@@ -157,7 +157,7 @@ namespace hex {
                     const auto &settingsData = *s_settings;
 
                     // During a crash settings can be empty, causing them to be overwritten.
-                    if (settingsData.empty()) {
+                    if (s_settings->empty()) {
                         return;
                     }
 
@@ -333,7 +333,7 @@ namespace hex {
 
 
             bool SliderDataSize::draw(const std::string &name) {
-                return ImGuiExt::SliderBytes(name.c_str(), &m_value, m_min, m_max);
+                return ImGuiExt::SliderBytes(name.c_str(), &m_value, m_min, m_max, m_stepSize);
             }
 
             void SliderDataSize::load(const nlohmann::json &data) {
@@ -760,6 +760,14 @@ namespace hex {
             impl::s_entries->push_back({ unlocalizedName, requiredSize, maxSize, std::move(displayGeneratorFunction), std::move(editingFunction) });
         }
 
+        void drawMenuItems(const std::function<void()> &function) {
+            if (ImGui::BeginPopup("##DataInspectorRowContextMenu")) {
+                function();
+                ImGui::Separator();
+                ImGui::EndPopup();
+            }
+        }
+
     }
 
     namespace ContentRegistry::DataProcessorNode {
@@ -925,17 +933,10 @@ namespace hex {
             });
 
             if (shortcut != Shortcut::None) {
-                auto callbackIfEnabled  = [enabledCallback, function]{ if (enabledCallback()) { function(); } };
-
-                const auto unlocalizedShortcutName =
-                    unlocalizedMainMenuNames.size() == 1 ?
-                        std::vector { unlocalizedMainMenuNames.back() } :
-                        std::vector(unlocalizedMainMenuNames.begin() + 1, unlocalizedMainMenuNames.end());
-
                 if (shortcut.isLocal() && view != nullptr)
-                    ShortcutManager::addShortcut(view, shortcut, unlocalizedShortcutName, callbackIfEnabled);
+                    ShortcutManager::addShortcut(view, shortcut, unlocalizedMainMenuNames, function, enabledCallback);
                 else
-                    ShortcutManager::addGlobalShortcut(shortcut, unlocalizedShortcutName, callbackIfEnabled);
+                    ShortcutManager::addGlobalShortcut(shortcut, unlocalizedMainMenuNames, function, enabledCallback);
             }
         }
 

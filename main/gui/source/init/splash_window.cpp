@@ -60,7 +60,7 @@ namespace hex::init {
         }
 
         RequestAddInitTask::subscribe([this](const std::string& name, bool async, const TaskFunction &function){
-            m_tasks.push_back(Task{ name, function, async });
+            m_tasks.push_back(Task{ name, function, async, false });
         });
     }
 
@@ -220,14 +220,17 @@ namespace hex::init {
 
             auto startTime = std::chrono::high_resolution_clock::now();
 
-            // Loop over all registered init tasks
-            for (auto it = m_tasks.begin(); it != m_tasks.end(); ++it) {
-                // Construct a new task callback
-                this->createTask(*it);
-            }
-
             // Check every 100ms if all tasks have run
             while (true) {
+                // Loop over all registered init tasks
+                for (auto it = m_tasks.begin(); it != m_tasks.end(); ++it) {
+                    // Construct a new task callback
+                    if (!it->running) {
+                        this->createTask(*it);
+                        it->running = true;
+                    }
+                }
+
                 {
                     std::scoped_lock lock(m_tasksMutex);
                     if (m_completedTaskCount >= m_totalTaskCount)
@@ -433,8 +436,16 @@ namespace hex::init {
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
         #endif
 
-	#if defined(OS_LINUX) && defined(GLFW_WAYLAND_APP_ID)
-	    glfwWindowHintString(GLFW_WAYLAND_APP_ID, "imhex");
+	#if defined(OS_LINUX)
+        #if defined(GLFW_WAYLAND_APP_ID)
+	        glfwWindowHintString(GLFW_WAYLAND_APP_ID, "imhex");
+        #endif
+
+        #if defined(GLFW_SCALE_FRAMEBUFFER)
+            glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
+        #endif
+
+        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 	#endif
 
         // Make splash screen non-resizable, undecorated and transparent
@@ -457,6 +468,8 @@ namespace hex::init {
             std::exit(EXIT_FAILURE);
         }
 
+        ImHexApi::System::impl::setMainWindowHandle(m_window);
+
         // Force window to be fully opaque by default
         glfwSetWindowOpacity(m_window, 1.0F);
 
@@ -469,7 +482,7 @@ namespace hex::init {
             if (meanScale <= 0.0F)
                 meanScale = 1.0F;
 
-            meanScale /= hex::ImHexApi::System::getBackingScaleFactor();
+            meanScale /= hex::ImHexApi::System::getBackingScaleFactor();                
 
             ImHexApi::System::impl::setGlobalScale(meanScale);
             ImHexApi::System::impl::setNativeScale(meanScale);

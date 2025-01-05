@@ -11,6 +11,7 @@
 #include <wolv/utils/string.hpp>
 
 #include <utility>
+#include <numeric>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -22,6 +23,7 @@
 
 #if defined(OS_WINDOWS)
     #include <windows.h>
+    #include <DSRole.h>
 #else
     #include <sys/utsname.h>
     #include <unistd.h>
@@ -620,7 +622,14 @@ namespace hex {
             #elif defined(OS_MACOS)
                 return ::getBackingScaleFactor();
             #elif defined(OS_LINUX)
-                return 1.0F;
+                if (std::string_view(::getenv("XDG_SESSION_TYPE")) == "x11")
+                    return 1.0F;
+                else {
+                    float xScale = 0, yScale = 0;
+                    glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &xScale, &yScale);
+
+                    return std::midpoint(xScale, yScale);
+                }
             #elif defined(OS_WEB)
                 return 1.0F;
                 /*
@@ -720,6 +729,27 @@ namespace hex {
 
         const std::string &getGLRenderer() {
             return impl::s_glRenderer;
+        }
+
+        bool isCorporateEnvironment() {
+            #if defined(OS_WINDOWS)
+                {
+                    DSROLE_PRIMARY_DOMAIN_INFO_BASIC * info;
+                    if ((DsRoleGetPrimaryDomainInformation(NULL, DsRolePrimaryDomainInfoBasic, (PBYTE *)&info) == ERROR_SUCCESS) && (info != nullptr))
+                    {
+                        bool result = std::wstring(info->DomainNameFlat).empty();
+                        DsRoleFreeMemory(info);
+
+                        return result;
+                    } else {
+                        DWORD size = 1024;
+                        ::GetComputerNameExA(ComputerNameDnsDomain, nullptr, &size);
+                        return size > 0;
+                    }
+                }
+            #else
+                return false;
+            #endif
         }
 
         bool isPortableVersion() {
