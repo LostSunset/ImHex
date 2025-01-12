@@ -1115,7 +1115,7 @@ namespace hex::plugin::builtin {
         });
 
         m_hexEditor.setBytesPerRow(ContentRegistry::Settings::read<int>("hex.builtin.setting.hex_editor", "hex.builtin.setting.hex_editor.bytes_per_row", m_hexEditor.getBytesPerRow()));
-        ContentRegistry::Settings::onChange("hex.builtin.setting.hex_editor", "hex.builtin.setting.highlight_color", [this](const ContentRegistry::Settings::SettingsValue &value) {
+        ContentRegistry::Settings::onChange("hex.builtin.setting.hex_editor", "hex.builtin.setting.hex_editor.highlight_color", [this](const ContentRegistry::Settings::SettingsValue &value) {
             m_hexEditor.setSelectionColor(value.get<int>(0x60C08080));
         });
         ContentRegistry::Settings::onChange("hex.builtin.setting.hex_editor", "hex.builtin.setting.hex_editor.sync_scrolling", [this](const ContentRegistry::Settings::SettingsValue &value) {
@@ -1261,7 +1261,7 @@ namespace hex::plugin::builtin {
 
         /* Copy custom encoding */
         ContentRegistry::Interface::addMenuItem({ "hex.builtin.menu.edit", "hex.builtin.view.hex_editor.menu.edit.copy_as", "hex.builtin.view.hex_editor.copy.custom_encoding" }, "あ", 1300,
-                                                Shortcut::None,
+                                                SHIFT + ALT + Keys::C,
                                                 [this] {
                                                     auto selection = ImHexApi::HexEditor::getSelection();
                                                     auto customEncoding = m_hexEditor.getCustomEncoding();
@@ -1457,6 +1457,8 @@ namespace hex::plugin::builtin {
                                                         ImHexApi::HexEditor::setSelection(bigEndianValue, 1);
                                                     }
                                                     ImGui::PopID();
+
+                                                    menu::menuSeparator();
 
                                                     if (menu::menuItem("hex.builtin.view.hex_editor.menu.edit.jump_to.curr_pattern"_lang, Shortcut::None, false, selection.has_value() && ContentRegistry::PatternLanguage::getRuntime().getCreatedPatternCount() > 0)) {
                                                         auto patterns = ContentRegistry::PatternLanguage::getRuntime().getPatternsAtAddress(selection->getStartAddress());

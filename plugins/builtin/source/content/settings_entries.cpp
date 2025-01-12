@@ -288,7 +288,7 @@ namespace hex::plugin::builtin {
                 bool settingChanged = false;
 
                 ImGui::BeginDisabled(m_drawShortcut.matches(m_defaultShortcut));
-                if (ImGuiExt::IconButton(ICON_VS_X, ImGui::GetStyleColorVec4(ImGuiCol_Text))) {
+                if (ImGui::Button("X", ImGui::GetStyle().FramePadding * 2 + ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()))) {
                     this->reset();
                     if (!m_hasDuplicate) {
                         m_shortcut = m_defaultShortcut;
@@ -755,6 +755,8 @@ namespace hex::plugin::builtin {
             ContentRegistry::Settings::add<AutoBackupWidget>("hex.builtin.setting.general", "", "hex.builtin.setting.general.auto_backup_time");
             ContentRegistry::Settings::add<Widgets::SliderDataSize>("hex.builtin.setting.general", "", "hex.builtin.setting.general.max_mem_file_size", 512_MiB, 0_bytes, 32_GiB, 1_MiB)
                 .setTooltip("hex.builtin.setting.general.max_mem_file_size.desc");
+            ContentRegistry::Settings::add<Widgets::SliderInteger>("hex.builtin.setting.general", "hex.builtin.setting.general.patterns", "hex.builtin.setting.general.pattern_data_max_filter_items", 128, 32, 1024);
+
             ContentRegistry::Settings::add<Widgets::Checkbox>("hex.builtin.setting.general", "hex.builtin.setting.general.patterns", "hex.builtin.setting.general.auto_load_patterns", true);
             ContentRegistry::Settings::add<Widgets::Checkbox>("hex.builtin.setting.general", "hex.builtin.setting.general.patterns", "hex.builtin.setting.general.sync_pattern_source", false);
             ContentRegistry::Settings::add<Widgets::Checkbox>("hex.builtin.setting.general", "hex.builtin.setting.general.network", "hex.builtin.setting.general.network_interface", false);
@@ -788,6 +790,16 @@ namespace hex::plugin::builtin {
                                                                       ThemeManager::changeTheme(dropDown->getValue());
                                                                   }
                                                               });
+
+            ContentRegistry::Settings::add<Widgets::ColorPicker>(
+                "hex.builtin.setting.interface", "hex.builtin.setting.interface.style", "hex.builtin.setting.interface.accent",
+                ImGui::GetStyleColorVec4(ImGuiCol_Button),
+                ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs
+            )
+            .setChangedCallback([](auto &widget) {
+                auto colorPicker = static_cast<Widgets::ColorPicker *>(&widget);
+                ThemeManager::setAccentColor(colorPicker->getColor());
+            });
 
             ContentRegistry::Settings::add<ScalingWidget>("hex.builtin.setting.interface", "hex.builtin.setting.interface.style", "hex.builtin.setting.interface.scaling_factor")
             .requiresRestart();
