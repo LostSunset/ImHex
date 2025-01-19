@@ -182,30 +182,31 @@ namespace hex::plugin::builtin {
             if (ImGui::BeginTable("Welcome Outer", 1, ImGuiTableFlags_None, ImGui::GetContentRegionAvail() - margin)) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Image(s_bannerTexture, s_bannerTexture.getSize());
-
-                if (ImHexApi::System::isNightlyBuild()) {
-                    auto cursor = ImGui::GetCursorPos();
-
-                    ImGui::SameLine(0);
-                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 15_scaled);
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5_scaled);
-
-                    ImGui::Image(s_nightlyTexture, s_nightlyTexture.getSize());
-                    ImGuiExt::InfoTooltip(hex::format("{0}\n\nCommit: {1}@{2}", "hex.builtin.welcome.nightly_build"_lang, ImHexApi::System::getCommitBranch(), ImHexApi::System::getCommitHash(true)).c_str());
-
-                    ImGui::SetCursorPos(cursor);
-                }
-
-                ImGui::NewLine();
 
                 ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_PopupBg));
                 ON_SCOPE_EXIT { ImGui::PopStyleColor(); };
 
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
                 const auto availableSpace = ImGui::GetContentRegionAvail();
                 if (ImGui::BeginTable("Welcome Left", 1, ImGuiTableFlags_NoBordersInBody, ImVec2(availableSpace.x / 2, 0))) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Image(s_bannerTexture, s_bannerTexture.getSize());
+
+                    if (ImHexApi::System::isNightlyBuild()) {
+                        auto cursor = ImGui::GetCursorPos();
+
+                        ImGui::SameLine(0);
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 15_scaled);
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5_scaled);
+
+                        ImGui::Image(s_nightlyTexture, s_nightlyTexture.getSize());
+                        ImGuiExt::InfoTooltip(hex::format("{0}\n\nCommit: {1}@{2}", "hex.builtin.welcome.nightly_build"_lang, ImHexApi::System::getCommitBranch(), ImHexApi::System::getCommitHash(true)).c_str());
+
+                        ImGui::SetCursorPos(cursor);
+                    }
+
+                    ImGui::NewLine();
+
                     ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetTextLineHeightWithSpacing() * 6);
                     ImGui::TableNextColumn();
 
@@ -284,6 +285,12 @@ namespace hex::plugin::builtin {
                 if (ImGui::BeginTable("Welcome Right", 1, ImGuiTableFlags_NoBordersInBody, ImVec2(availableSpace.x / 2, 0))) {
                     ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetTextLineHeightWithSpacing() * 5);
                     ImGui::TableNextColumn();
+
+                    ImGui::NewLine();
+                    ImGui::NewLine();
+                    ImGui::NewLine();
+                    ImGui::NewLine();
+                    ImGui::NewLine();
 
                     auto windowPadding = ImGui::GetStyle().WindowPadding.x * 3;
 
@@ -403,7 +410,7 @@ namespace hex::plugin::builtin {
                             static bool hovered = false;
                             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, hovered ? 1.0F : 0.3F);
                             {
-                                const ImVec2 windowSize = scaled({ 150, 60 });
+                                const ImVec2 windowSize = { 150_scaled, ImGui::GetTextLineHeightWithSpacing() * 3.5F };
                                 ImGui::SetCursorScreenPos(ImGui::GetWindowPos() + ImGui::GetWindowSize() - windowSize - ImGui::GetStyle().WindowPadding);
                                 ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
                                 if (ImGuiExt::BeginSubWindow("hex.builtin.welcome.header.quick_settings"_lang, nullptr, windowSize, ImGuiChildFlags_AutoResizeY)) {

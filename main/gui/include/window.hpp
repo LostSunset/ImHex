@@ -59,9 +59,9 @@ namespace hex {
 
         std::mutex m_popupMutex;
         std::list<std::string> m_popupsToOpen;
-        std::vector<int> m_pressedKeys;
+        std::set<int> m_pressedKeys;
 
-        std::atomic<bool> m_unlockFrameRate = false;
+        std::atomic<bool> m_unlockFrameRate = true;
 
         ImGuiExt::ImHexCustomData m_imguiCustomData;
 
