@@ -1,5 +1,4 @@
 #include "window.hpp"
-#include "hex/ui/banner.hpp"
 
 #include <hex.hpp>
 
@@ -10,14 +9,18 @@
 #include <hex/api/shortcut_manager.hpp>
 #include <hex/api/workspace_manager.hpp>
 #include <hex/api/tutorial_manager.hpp>
+#include <hex/api/events/requests_lifecycle.hpp>
+#include <hex/api/events/events_lifecycle.hpp>
+#include <hex/api/events/requests_gui.hpp>
+#include <hex/api/events/events_gui.hpp>
 
 #include <hex/helpers/utils.hpp>
-#include <hex/helpers/fs.hpp>
 #include <hex/helpers/logger.hpp>
 #include <hex/helpers/default_paths.hpp>
 
 #include <hex/ui/view.hpp>
 #include <hex/ui/popup.hpp>
+#include <hex/ui/banner.hpp>
 
 #include <chrono>
 #include <csignal>
@@ -44,6 +47,7 @@
 #include <wolv/utils/guards.hpp>
 #include <fmt/printf.h>
 #include <fmt/chrono.h>
+#include <hex/helpers/opengl.hpp>
 
 namespace hex {
 
@@ -76,6 +80,10 @@ namespace hex {
         this->initImGui();
         this->setupNativeWindow();
         this->registerEventHandlers();
+
+        #if !defined(OS_WEB)
+            this->loadPostProcessingShader();
+        #endif
 
         ContentRegistry::Settings::impl::store();
         ContentRegistry::Settings::impl::load();
@@ -151,6 +159,36 @@ namespace hex {
                 }
         });
     }
+
+    void Window::loadPostProcessingShader() {
+
+        for (const auto &folder : paths::Resources.all()) {
+            auto vertexShaderPath = folder / "shader.vert";
+            auto fragmentShaderPath = folder / "shader.frag";
+
+            if (!wolv::io::fs::exists(vertexShaderPath))
+                continue;
+            if (!wolv::io::fs::exists(fragmentShaderPath))
+                continue;
+
+            auto vertexShaderFile = wolv::io::File(vertexShaderPath, wolv::io::File::Mode::Read);
+            if (!vertexShaderFile.isValid())
+                continue;
+
+            auto fragmentShaderFile = wolv::io::File(fragmentShaderPath, wolv::io::File::Mode::Read);
+            if (!fragmentShaderFile.isValid())
+                continue;
+
+            const auto vertexShaderSource = vertexShaderFile.readString();
+            const auto fragmentShaderSource = fragmentShaderFile.readString();
+            m_postProcessingShader = gl::Shader(vertexShaderSource, fragmentShaderSource);
+            if (!m_postProcessingShader.isValid())
+                continue;
+
+            break;
+        }
+    }
+
 
     void handleException() {
         try {
@@ -309,8 +347,7 @@ namespace hex {
                 ImGui_ImplOpenGL3_CreateFontsTexture();
             }
 
-            // Make the first font in the list the default UI font
-            currentFont = fontDefinitions.begin()->second->ContainerAtlas;
+            currentFont = ImHexApi::Fonts::getFont("hex.fonts.font.default")->ContainerAtlas;
         }
 
         // Start new ImGui Frame
@@ -667,16 +704,13 @@ namespace hex {
             view->trackViewOpenState();
 
             if (view->getWindowOpenState()) {
-                bool hasWindow = window != nullptr;
-                bool focused   = false;
-
                 // Get the currently focused view
-                if (hasWindow && (window->Flags & ImGuiWindowFlags_Popup) != ImGuiWindowFlags_Popup) {
+                if (window != nullptr && (window->Flags & ImGuiWindowFlags_Popup) != ImGuiWindowFlags_Popup) {
                     auto windowName = View::toWindowName(name);
                     ImGui::Begin(windowName.c_str());
 
                     // Detect if the window is focused
-                    focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_NoPopupHierarchy);
+                    const bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_NoPopupHierarchy);
 
                     // Dock the window if it's not already docked
                     if (view->didWindowJustOpen() && !ImGui::IsWindowDocked()) {
@@ -763,28 +797,110 @@ namespace hex {
         glfwMakeContextCurrent(backupContext);
 
         if (shouldRender) {
-            auto* drawData = ImGui::GetDrawData();
-            
-            // Avoid accidentally clearing the viewport when the application is minimized,
-            // otherwise the OS will display an empty frame during deminimization on macOS
-            if (drawData->DisplaySize.x != 0 && drawData->DisplaySize.y != 0) {
-                int displayWidth, displayHeight;
-                glfwGetFramebufferSize(m_window, &displayWidth, &displayHeight);
-                glViewport(0, 0, displayWidth, displayHeight);
-                glClearColor(0.00F, 0.00F, 0.00F, 0.00F);
-                glClear(GL_COLOR_BUFFER_BIT);
-                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            #if !defined(OS_WEB)
+                if (m_postProcessingShader.isValid())
+                    drawWithShader();
+                else
+                    drawImGui();
+            #else
+                drawImGui();
+            #endif
 
-                glfwSwapBuffers(m_window);
-            }
+            glfwSwapBuffers(m_window);
         }
 
         // Process layout load requests
         // NOTE: This needs to be done before a new frame is started, otherwise ImGui won't handle docking correctly
         LayoutManager::process();
         WorkspaceManager::process();
+    }
 
-        ImGui::GetIO().FontGlobalScale = 1.0F / ImHexApi::System::getBackingScaleFactor();
+    void Window::drawImGui() {
+        auto* drawData = ImGui::GetDrawData();
+
+        // Avoid accidentally clearing the viewport when the application is minimized,
+        // otherwise the OS will display an empty frame during deminimization on macOS
+        if (drawData->DisplaySize.x != 0 && drawData->DisplaySize.y != 0) {
+            int displayWidth, displayHeight;
+            glfwGetFramebufferSize(m_window, &displayWidth, &displayHeight);
+            glViewport(0, 0, displayWidth, displayHeight);
+            glClearColor(0.00F, 0.00F, 0.00F, 0.00F);
+            glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+    }
+
+    void Window::drawWithShader() {
+        #if !defined(OS_WEB)
+            int displayWidth, displayHeight;
+            glfwGetFramebufferSize(m_window, &displayWidth, &displayHeight);
+
+            GLuint fbo, texture;
+            glGenFramebuffers(1, &fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+            // Create a texture to render into
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, displayWidth, displayHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            // Attach the texture to the framebuffer
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+            // Check if framebuffer is complete
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+                log::error("Framebuffer is not complete!");
+            }
+
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+            drawImGui();
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            GLuint quadVAO, quadVBO;
+            float quadVertices[] = {
+                // positions   // texCoords
+                -1.0f,  1.0f,  0.0f, 1.0f,
+                -1.0f, -1.0f,  0.0f, 0.0f,
+                 1.0f, -1.0f,  1.0f, 0.0f,
+
+                -1.0f,  1.0f,  0.0f, 1.0f,
+                 1.0f, -1.0f,  1.0f, 0.0f,
+                 1.0f,  1.0f,  1.0f, 1.0f
+            };
+
+            glGenVertexArrays(1, &quadVAO);
+            glGenBuffers(1, &quadVBO);
+            glBindVertexArray(quadVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+            glBindVertexArray(0);
+
+            m_postProcessingShader.bind();
+
+            glBindVertexArray(quadVAO);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glClearColor(0.00F, 0.00F, 0.00F, 0.00F);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            m_postProcessingShader.unbind();
+
+            glDeleteVertexArrays(1, &quadVAO);
+            glDeleteBuffers(1, &quadVBO);
+            glDeleteTextures(1, &texture);
+            glDeleteFramebuffers(1, &fbo);
+        #endif
     }
 
     void Window::initGLFW() {
@@ -906,6 +1022,11 @@ namespace hex {
             if (!isMainWindow(window)) return;
 
             ImHexApi::System::impl::setMainWindowPosition(x, y);
+
+            int width = 0, height = 0;
+            glfwGetWindowSize(window, &width, &height);
+            ImHexApi::System::impl::setMainWindowPosition(x, y);
+            ImHexApi::System::impl::setMainWindowSize(width, height);
         });
 
         // Register window resize callback
@@ -937,10 +1058,14 @@ namespace hex {
         glfwSetCursorPosCallback(m_window, unlockFrameRate);
         glfwSetMouseButtonCallback(m_window, unlockFrameRate);
         glfwSetScrollCallback(m_window, unlockFrameRate);
-        glfwSetWindowFocusCallback(m_window, unlockFrameRate);
 
-        glfwSetWindowFocusCallback(m_window, [](GLFWwindow *, int focused) {
+        glfwSetWindowFocusCallback(m_window, [](GLFWwindow *window, int focused) {
+            unlockFrameRate(window);
             EventWindowFocused::post(focused == GLFW_TRUE);
+        });
+
+        glfwSetWindowMaximizeCallback(m_window, [](GLFWwindow *window, int) {
+            glfwShowWindow(window);
         });
 
         // Register key press callback
@@ -1091,6 +1216,8 @@ namespace hex {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigWindowsMoveFromTitleBarOnly = true;
         io.FontGlobalScale = 1.0F;
+
+        ImGui::GetCurrentContext()->FontAtlasOwnedByContext = false;
 
         if (glfwGetPrimaryMonitor() != nullptr) {
             if (ImHexApi::System::isMutliWindowModeEnabled())

@@ -1,16 +1,18 @@
-#include <hex/api/content_registry.hpp>
-#include <hex/api/theme_manager.hpp>
-
 #include "window.hpp"
-
 
 #if defined(OS_WINDOWS)
 
     #include "messaging.hpp"
 
+    #include <hex/api/content_registry.hpp>
+    #include <hex/api/theme_manager.hpp>
+
     #include <hex/helpers/utils.hpp>
     #include <hex/helpers/logger.hpp>
     #include <hex/helpers/default_paths.hpp>
+
+    #include <hex/api/events/events_gui.hpp>
+    #include <hex/api/events/requests_gui.hpp>
 
     #include <imgui.h>
     #include <imgui_internal.h>
@@ -28,6 +30,7 @@
     #include <fcntl.h>
     #include <shellapi.h>
     #include <timeapi.h>
+    #include <VersionHelpers.h>
 
 namespace hex {
 
@@ -389,8 +392,7 @@ namespace hex {
 
         // Windows versions before Windows 10 have issues with transparent framebuffers
         // causing the entire window to be slightly transparent ignoring all configurations
-        OSVERSIONINFOA versionInfo = { };
-        if (::GetVersionExA(&versionInfo) && versionInfo.dwMajorVersion >= 10) {
+        if (::IsWindows10OrGreater()) {
             glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
         } else {
             glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);

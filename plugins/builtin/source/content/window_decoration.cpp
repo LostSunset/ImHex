@@ -1,8 +1,9 @@
 #include <hex/api/content_registry.hpp>
-#include <hex/api/event_manager.hpp>
 #include <hex/api/shortcut_manager.hpp>
 #include <hex/api/task_manager.hpp>
 #include <hex/api/project_file_manager.hpp>
+#include <hex/api/events/events_gui.hpp>
+#include <hex/api/events/requests_gui.hpp>
 
 #include <hex/ui/view.hpp>
 #include <hex/helpers/utils.hpp>
@@ -399,18 +400,18 @@ namespace hex::plugin::builtin {
                     bool maximized = glfwGetWindowAttrib(window, GLFW_MAXIMIZED);
 
                     ImGui::BeginDisabled(!maximized);
-                    if (ImGui::MenuItem(ICON_VS_CHROME_RESTORE " Restore"))  glfwRestoreWindow(window);
+                    if (ImGui::MenuItemEx("Restore", ICON_VS_CHROME_RESTORE)) glfwRestoreWindow(window);
                     ImGui::EndDisabled();
 
-                    if (ImGui::MenuItem(ICON_VS_CHROME_MINIMIZE " Minimize")) glfwIconifyWindow(window);
+                    if (ImGui::MenuItemEx("Minimize", ICON_VS_CHROME_MINIMIZE)) glfwIconifyWindow(window);
 
                     ImGui::BeginDisabled(maximized);
-                    if (ImGui::MenuItem(ICON_VS_CHROME_MAXIMIZE " Maximize")) glfwMaximizeWindow(window);
+                    if (ImGui::MenuItemEx("Maximize", ICON_VS_CHROME_MAXIMIZE)) glfwMaximizeWindow(window);
                     ImGui::EndDisabled();
 
                     ImGui::Separator();
 
-                    if (ImGui::MenuItem(ICON_VS_CHROME_CLOSE " Close"))    ImHexApi::System::closeImHex();
+                    if (ImGui::MenuItemEx("Close", ICON_VS_CHROME_CLOSE)) ImHexApi::System::closeImHex();
 
                     ImGui::EndPopup();
                 }
