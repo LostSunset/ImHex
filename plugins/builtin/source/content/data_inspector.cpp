@@ -92,7 +92,7 @@ namespace hex::plugin::builtin {
         std::memcpy(&value, buffer.data(), std::min(sizeof(T), Size));
         value = hex::changeEndianness(value, Size, endian);
         if (Size != sizeof(T))
-            value = hex::signExtend(Size * 8, value);
+            value = T(hex::signExtend(Size * 8, value));
 
         return value;
     }
@@ -280,7 +280,7 @@ namespace hex::plugin::builtin {
             stringToFloat<long double>
         );
 
-        ContentRegistry::DataInspector::add("hex.builtin.inspector.sleb128", 1, (sizeof(i128) * 8 / 7) + 1,
+        ContentRegistry::DataInspector::add("hex.builtin.inspector.sleb128", 1, (16 * 8 / 7) + 1,
             [](auto buffer, auto endian, auto style) {
                 std::ignore = endian;
 
@@ -368,8 +368,11 @@ namespace hex::plugin::builtin {
             },
             [](const std::string &value, std::endian endian) -> std::vector<u8> {
                 std::vector<u8> bytes;
-                auto wideString = wolv::util::utf8ToWstring(value.c_str(), "Invalid");
-                std::copy(wideString.begin(), wideString.end(), std::back_inserter(bytes));
+                auto wideString = wolv::util::utf8ToWstring(value.c_str(), "");
+				if (wideString.empty()) return bytes;
+
+				bytes.resize(wideString.size() * sizeof(wchar_t));
+				std::memcpy(bytes.data(), wideString.data(), bytes.size());
 
                 if (endian != std::endian::native)
                     std::reverse(bytes.begin(), bytes.end());

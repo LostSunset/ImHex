@@ -204,7 +204,7 @@ namespace hex::plugin::builtin {
         {
             wolv::io::File file(m_path, wolv::io::File::Mode::Read);
             if (!file.isValid()) {
-                this->setErrorMessage(hex::format("hex.builtin.provider.file.error.open"_lang, m_path.string(), std::system_category().message(file.getOpenError().value_or(0))));
+                this->setErrorMessage(hex::format("hex.builtin.provider.file.error.open"_lang, m_path.string(), formatSystemError(file.getOpenError().value_or(0))));
                 return false;
             }
 
@@ -237,7 +237,7 @@ namespace hex::plugin::builtin {
             file = wolv::io::File(m_path, wolv::io::File::Mode::Read);
             if (!file.isValid()) {
                 m_readable = false;
-                this->setErrorMessage(hex::format("hex.builtin.provider.file.error.open"_lang, m_path.string(), std::system_category().message(file.getOpenError().value_or(0))));
+                this->setErrorMessage(hex::format("hex.builtin.provider.file.error.open"_lang, m_path.string(), formatSystemError(file.getOpenError().value_or(0))));
                 return false;
             }
 
@@ -311,7 +311,7 @@ namespace hex::plugin::builtin {
                 fullPath = path;
 
             if (!wolv::io::fs::exists(fullPath)) {
-                this->setErrorMessage(hex::format("hex.builtin.provider.file.error.open"_lang, m_path.string(), std::system_category().message(ENOENT)));
+                this->setErrorMessage(hex::format("hex.builtin.provider.file.error.open"_lang, m_path.string(), formatSystemError(ENOENT)));
             }
 
             path = std::move(fullPath);
@@ -367,7 +367,7 @@ namespace hex::plugin::builtin {
         }
 
         m_changeEventAcknowledgementPending = true;
-        ui::BannerButton::open(ICON_VS_INFO, "hex.builtin.provider.file.reload_changes"_lang, ImColor(66, 104, 135), "hex.builtin.provider.file.reload_changes.reload", [this] {
+        ui::BannerButton::open(ICON_VS_INFO, "hex.builtin.provider.file.reload_changes", ImColor(66, 104, 135), "hex.builtin.provider.file.reload_changes.reload", [this] {
             this->close();
             (void)this->open(!m_loadedIntoMemory);
 

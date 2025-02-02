@@ -67,7 +67,7 @@ namespace hex::plugin::builtin {
                 }
                 if (ImGuiExt::InputTextIcon("##input", ICON_VS_SYMBOL_OPERATOR, m_input)) {
                     if (auto result = m_evaluator.evaluate(m_input); result.has_value()) {
-                        const auto inputResult = result.value();
+                        const auto inputResult = u64(result.value());
                         auto provider = ImHexApi::Provider::get();
 
                         switch (m_mode) {
@@ -521,7 +521,7 @@ namespace hex::plugin::builtin {
         }
 
         [[nodiscard]] UnlocalizedString getTitle() const override {
-            return "hex.builtin.view.hex_editor.menu.edit.paste.popup.title"_lang;
+            return "hex.builtin.view.hex_editor.menu.edit.paste.popup.title";
         }
 
     private:
@@ -737,7 +737,7 @@ namespace hex::plugin::builtin {
             return;
 
         fs::openFileBrowser(fs::DialogMode::Save, {}, [provider](const auto &path) {
-            PopupBlockingTask::open(TaskManager::createTask("hex.builtin.task.saving_data"_lang, TaskManager::NoProgress, [=](Task &){
+            PopupBlockingTask::open(TaskManager::createTask("hex.builtin.task.saving_data", TaskManager::NoProgress, [=](Task &){
                 provider->saveAs(path);
             }));
         });
@@ -1041,8 +1041,8 @@ namespace hex::plugin::builtin {
     }
 
     void ViewHexEditor::registerEvents() {
-        RequestHexEditorSelectionChange::subscribe(this, [this](Region region) {
-            auto provider = ImHexApi::Provider::get();
+        RequestHexEditorSelectionChange::subscribe(this, [this](ImHexApi::HexEditor::ProviderRegion region) {
+            auto provider = region.getProvider();
 
             if (region == Region::Invalid() || provider == nullptr) {
                 m_selectionStart->reset();
@@ -1058,6 +1058,7 @@ namespace hex::plugin::builtin {
 
             if (region.size != 0) {
                 provider->setCurrentPage(page.value());
+                m_hexEditor.setProvider(provider);
                 this->setSelection(region);
                 this->jumpIfOffScreen();
             }
@@ -1195,11 +1196,11 @@ namespace hex::plugin::builtin {
 
                                                     ui::PopupFileChooser::open(basePaths, paths, std::vector<hex::fs::ItemFilter>{ {"Thingy Table File", "tbl"} }, false,
                                                     [this](const auto &path) {
-                                                        TaskManager::createTask("hex.builtin.task.loading_encoding_file"_lang, 0, [this, path](auto&) {
+                                                        TaskManager::createTask("hex.builtin.task.loading_encoding_file", 0, [this, path](auto&) {
                                                             auto encoding = EncodingFile(EncodingFile::Type::Thingy, path);
                                                             ImHexApi::Provider::markDirty();
 
-                                                            TaskManager::doLater([this, encoding = std::move(encoding)] mutable {
+                                                            TaskManager::doLater([this, encoding = std::move(encoding)]() mutable {
                                                                 m_hexEditor.setCustomEncoding(std::move(encoding));
                                                             });
                                                         });

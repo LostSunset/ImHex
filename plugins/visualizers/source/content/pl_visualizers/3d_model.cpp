@@ -19,6 +19,7 @@
 
 #include <romfs/romfs.hpp>
 #include <numeric>
+#include <hex/helpers/auto_reset.hpp>
 
 namespace hex::plugin::visualizers {
 
@@ -85,7 +86,7 @@ namespace hex::plugin::visualizers {
 
         IndexType s_indexType;
 
-        ImGuiExt::Texture s_modelTexture;
+        AutoReset<ImGuiExt::Texture> s_modelTexture;
 
         gl::Vector<float, 3> s_translation      = { {  0.0F, 0.0F, -3.0F } };
         gl::Vector<float, 3> s_rotation         = { {  0.0F, 0.0F,  0.0F } };
@@ -94,7 +95,7 @@ namespace hex::plugin::visualizers {
         gl::Vector<float, 3> s_lightColor       = { {  1.0F, 1.0F,  1.0F } };
         gl::Matrix<float, 4, 4> s_rotate        = gl::Matrix<float, 4, 4>::identity();
 
-        ImGuiExt::Texture s_texture;
+        AutoReset<ImGuiExt::Texture> s_texture;
         std::fs::path s_texturePath;
 
         u32 s_vertexCount;
@@ -341,7 +342,7 @@ namespace hex::plugin::visualizers {
             rotation[2] = std::fmod(rotation[2], 2 * std::numbers::pi_v<float>);
         }
 
-        bool validateVector(const std::vector<float> &vector, u32 vertexCount, u32 divisor, const std::string &name,std::string &errorMessage) {
+        bool validateVector(const std::vector<float> &vector, u32 vertexCount, u32 divisor, const std::string &name, std::string &errorMessage) {
             if (!vector.empty()) {
                 if (vector.size() % divisor != 0) {
                     errorMessage = hex::format("hex.visualizers.pl_visualizer.3d.error_message_count"_lang, name , std::to_string(divisor));
@@ -376,24 +377,24 @@ namespace hex::plugin::visualizers {
 
 
             if ((indexType == IndexType::Undefined || vectors.indices.empty()) && vertexCount % 3 != 0) {
-                throw std::runtime_error(std::string("hex.visualizers.pl_visualizer.3d.error_message_vertex_count"_lang));
+                throw std::runtime_error("hex.visualizers.pl_visualizer.3d.error_message_vertex_count"_lang.get());
             } else
                 buffers.vertices = gl::Buffer<float>(gl::BufferType::Vertex, vectors.vertices);
 
 
-            if (validateVector(vectors.colors, vertexCount, 4,  std::string("hex.visualizers.pl_visualizer.3d.error_message_colors"_lang), errorMessage))
+            if (validateVector(vectors.colors, vertexCount, 4,  "hex.visualizers.pl_visualizer.3d.error_message_colors"_lang.get(), errorMessage))
                 buffers.colors = gl::Buffer<float>(gl::BufferType::Vertex, vectors.colors);
             else {
                 throw std::runtime_error(errorMessage);
             }
 
-            if (validateVector(vectors.normals, vertexCount, 3, std::string("hex.visualizers.pl_visualizer.3d.error_message_normals"_lang), errorMessage))
+            if (validateVector(vectors.normals, vertexCount, 3, "hex.visualizers.pl_visualizer.3d.error_message_normals"_lang.get(), errorMessage))
                 buffers.normals = gl::Buffer<float>(gl::BufferType::Vertex, vectors.normals);
             else {
                 throw std::runtime_error(errorMessage);
             }
 
-            if (validateVector(vectors.uv, vertexCount, 2, std::string("hex.visualizers.pl_visualizer.3d.error_message_uv_coords"_lang), errorMessage))
+            if (validateVector(vectors.uv, vertexCount, 2, "hex.visualizers.pl_visualizer.3d.error_message_uv_coords"_lang.get(), errorMessage))
                 buffers.uv = gl::Buffer<float>(gl::BufferType::Vertex, vectors.uv);
             else {
                 throw std::runtime_error(errorMessage);
@@ -429,11 +430,11 @@ namespace hex::plugin::visualizers {
                 lineBuffers.indices = gl::Buffer<T>(gl::BufferType::Index, lineVectors.indices);
 
             if ((indexType == IndexType::Undefined || lineVectors.indices.empty()) && vertexCount % 3 != 0) {
-                throw std::runtime_error(std::string("hex.visualizers.pl_visualizer.3d.error_message_vertex_count"_lang));
+                throw std::runtime_error("hex.visualizers.pl_visualizer.3d.error_message_vertex_count"_lang.get());
             } else
                 lineBuffers.vertices = gl::Buffer<float>(gl::BufferType::Vertex, lineVectors.vertices);
 
-            if (validateVector(lineVectors.colors, vertexCount, 4, std::string("hex.visualizers.pl_visualizer.3d.error_message_colors"_lang), errorMessage))
+            if (validateVector(lineVectors.colors, vertexCount, 4, "hex.visualizers.pl_visualizer.3d.error_message_colors"_lang.get(), errorMessage))
                 lineBuffers.colors = gl::Buffer<float>(gl::BufferType::Vertex, lineVectors.colors);
             else {
                 throw std::runtime_error(errorMessage);
@@ -643,7 +644,7 @@ namespace hex::plugin::visualizers {
                 vectors.vertices = patternToArray<float>(verticesPattern.get());
                 std::string errorMessage;
                 s_vertexCount = vectors.vertices.size() / 3;
-                if (!validateVector(vectors.vertices, s_vertexCount, 3, std::string("hex.visualizers.pl_visualizer.3d.error_message_positions"_lang), errorMessage))
+                if (!validateVector(vectors.vertices, s_vertexCount, 3, "hex.visualizers.pl_visualizer.3d.error_message_positions"_lang, errorMessage))
                     throw std::runtime_error(errorMessage);
 
                 if (s_indexType != IndexType::Undefined) {
@@ -651,16 +652,16 @@ namespace hex::plugin::visualizers {
                     s_badIndices.clear();
                     auto indexCount = vectors.indices.size();
                     if (indexCount < 3 || indexCount % 3 != 0) {
-                        throw std::runtime_error(std::string("hex.visualizers.pl_visualizer.3d.error_message_index_count"_lang));
+                        throw std::runtime_error("hex.visualizers.pl_visualizer.3d.error_message_index_count"_lang.get());
                     }
                     auto booleans = std::views::transform(vectors.indices,isIndexInRange);
                     if (!std::accumulate(std::begin(booleans), std::end(booleans), true, std::logical_and<>())) {
-                        errorMessage = std::string("hex.visualizers.pl_visualizer.3d.error_message_invalid_indices"_lang);
+                        errorMessage = "hex.visualizers.pl_visualizer.3d.error_message_invalid_indices"_lang.get();
                         for (auto badIndex : s_badIndices)
                             errorMessage += std::to_string(badIndex) + ", ";
                         errorMessage.pop_back();
                         errorMessage.pop_back();
-                        errorMessage += hex::format(std::string("hex.visualizers.pl_visualizer.3d.error_message_for_vertex_count"_lang),s_vertexCount);
+                        errorMessage += hex::format("hex.visualizers.pl_visualizer.3d.error_message_for_vertex_count"_lang.get(), s_vertexCount);
                         throw std::runtime_error(errorMessage);
                     }
                 }
@@ -681,23 +682,23 @@ namespace hex::plugin::visualizers {
 
                 lineVectors.vertices = patternToArray<float>(verticesPattern.get());
                 s_vertexCount = lineVectors.vertices.size() / 3;
-                if (!validateVector(lineVectors.vertices, s_vertexCount, 3, std::string("hex.visualizers.pl_visualizer.3d.error_message_positions"_lang), errorMessage))
+                if (!validateVector(lineVectors.vertices, s_vertexCount, 3, "hex.visualizers.pl_visualizer.3d.error_message_positions"_lang.get(), errorMessage))
                     throw std::runtime_error(errorMessage);
 
                 if (s_indexType != IndexType::Undefined) {
                     lineVectors.indices = patternToArray<T>(indicesPattern.get());
                     auto indexCount = lineVectors.indices.size();
                     if (indexCount < 3 || indexCount % 3 != 0) {
-                        throw std::runtime_error(std::string("hex.visualizers.pl_visualizer.3d.error_message_index_count"_lang));
+                        throw std::runtime_error("hex.visualizers.pl_visualizer.3d.error_message_index_count"_lang.get());
                     }
                     s_badIndices.clear();
                     if (!std::ranges::all_of(lineVectors.indices,isIndexInRange)) {
-                        errorMessage = std::string("hex.visualizers.pl_visualizer.3d.error_message_invalid_indices"_lang);
+                        errorMessage = "hex.visualizers.pl_visualizer.3d.error_message_invalid_indices"_lang.get();
                         for (auto badIndex : s_badIndices)
                             errorMessage += std::to_string(badIndex) + ", ";
                         errorMessage.pop_back();
                         errorMessage.pop_back();
-                        errorMessage += hex::format(std::string("hex.visualizers.pl_visualizer.3d.error_message_for_vertex_count"_lang),s_vertexCount);
+                        errorMessage += hex::format("hex.visualizers.pl_visualizer.3d.error_message_for_vertex_count"_lang.get(), s_vertexCount);
                         throw std::runtime_error(errorMessage);
                     }
                 }
@@ -806,7 +807,7 @@ namespace hex::plugin::visualizers {
                 }
 
                 if (s_drawTexture)
-                    glBindTexture(GL_TEXTURE_2D, s_modelTexture);
+                    glBindTexture(GL_TEXTURE_2D, *s_modelTexture);
 
                 buffers.indices.bind();
                 if (buffers.indices.getSize() == 0)

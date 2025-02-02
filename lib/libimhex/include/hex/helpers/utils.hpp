@@ -37,7 +37,7 @@ namespace hex {
     template<typename T>
     [[nodiscard]] std::vector<std::vector<T>> sampleChannels(const std::vector<T> &data, size_t count, size_t channels) {
         if (channels == 0) return {};
-        size_t signalLength = std::max(1.0, double(data.size()) / channels);
+        size_t signalLength = std::max<double>(1.0, double(data.size()) / channels);
 
         size_t stride = std::max(1.0, double(signalLength) / count);
 
@@ -109,13 +109,13 @@ namespace hex {
     [[nodiscard]] std::wstring utf8ToUtf16(const std::string& utf8);
     [[nodiscard]] std::string utf16ToUtf8(const std::wstring& utf16);
 
-    [[nodiscard]] constexpr u64 extract(u8 from, u8 to, const std::unsigned_integral auto &value) {
+    [[nodiscard]] constexpr u64 extract(u8 from, u8 to, const auto &value) {
         if (from < to) std::swap(from, to);
 
         using ValueType = std::remove_cvref_t<decltype(value)>;
         ValueType mask  = (std::numeric_limits<ValueType>::max() >> (((sizeof(value) * 8) - 1) - (from - to))) << to;
 
-        return (value & mask) >> to;
+        return u64((value & mask) >> to);
     }
 
     [[nodiscard]] inline u64 extract(u32 from, u32 to, const std::vector<u8> &bytes) {

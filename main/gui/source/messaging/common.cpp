@@ -26,6 +26,30 @@ namespace hex::messaging {
                 sendToOtherInstance(eventName, eventData);
             }
         });
+
+        EventNativeMessageReceived::subscribe([](const std::vector<u8> &rawData) {
+            i64 nullIndex = -1;
+
+            auto messageData = reinterpret_cast<const char*>(rawData.data());
+            size_t messageSize = rawData.size();
+
+            for (size_t i = 0; i < messageSize; i++) {
+                if (messageData[i] == '\0') {
+                    nullIndex = i;
+                    break;
+                }
+            }
+
+            if (nullIndex == -1) {
+                log::warn("Received invalid forwarded event");
+                return;
+            }
+
+            std::string eventName(messageData, nullIndex);
+            std::vector<u8> eventData(messageData + nullIndex + 1, messageData + messageSize);
+
+            messageReceived(eventName, eventData);
+        });
     }
 
     void setupMessaging() {

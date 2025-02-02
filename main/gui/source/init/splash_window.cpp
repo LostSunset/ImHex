@@ -31,6 +31,8 @@
 using namespace std::literals::chrono_literals;
 
 namespace hex::init {
+    
+    constexpr static auto WindowSize = ImVec2(640, 400);
 
     struct GlfwError {
         int errorCode = 0;
@@ -65,6 +67,10 @@ namespace hex::init {
     }
 
     WindowSplash::~WindowSplash() {
+        // Clear textures before deinitializing glfw
+        m_splashBackgroundTexture.reset();
+        m_splashTextTexture.reset();
+
         this->exitImGui();
         this->exitGLFW();
     }
@@ -254,7 +260,7 @@ namespace hex::init {
 
 
     FrameResult WindowSplash::fullFrame() {
-        glfwSetWindowSize(m_window, 640, 400);
+        glfwSetWindowSize(m_window, WindowSize.x, WindowSize.y);
         centerWindow(m_window);
 
         glfwPollEvents();
@@ -269,7 +275,7 @@ namespace hex::init {
         {
 
             // Draw the splash screen background
-            drawList->AddImage(this->m_splashBackgroundTexture, ImVec2(0, 0), this->m_splashBackgroundTexture.getSize());
+            drawList->AddImage(this->m_splashBackgroundTexture, ImVec2(0, 0), WindowSize);
 
             {
 
@@ -326,7 +332,7 @@ namespace hex::init {
             this->m_progressLerp += (m_progress - this->m_progressLerp) * 0.1F;
 
             // Draw the splash screen foreground
-            drawList->AddImage(this->m_splashTextTexture, ImVec2(0, 0), this->m_splashTextTexture.getSize());
+            drawList->AddImage(this->m_splashTextTexture, ImVec2(0, 0), WindowSize);
 
             // Draw the "copyright" notice
             drawList->AddText(ImVec2(35, 85), ImColor(0xFF, 0xFF, 0xFF, 0xFF), hex::format("WerWolv\n2020 - {0}", &__DATE__[7]).c_str());
@@ -339,7 +345,7 @@ namespace hex::init {
                 const static auto VersionInfo = hex::format("{0}", ImHexApi::System::getImHexVersion().get());
             #endif
 
-            drawList->AddText(ImVec2((this->m_splashBackgroundTexture.getSize().x - ImGui::CalcTextSize(VersionInfo.c_str()).x) / 2, 105), ImColor(0xFF, 0xFF, 0xFF, 0xFF), VersionInfo.c_str());
+            drawList->AddText(ImVec2((WindowSize.x - ImGui::CalcTextSize(VersionInfo.c_str()).x) / 2, 105), ImColor(0xFF, 0xFF, 0xFF, 0xFF), VersionInfo.c_str());
         }
 
         // Draw the task progress bar
@@ -523,19 +529,7 @@ namespace hex::init {
             cfg.OversampleH = cfg.OversampleV = 1, cfg.PixelSnapH = true;
             cfg.SizePixels = ImHexApi::Fonts::DefaultFontSize;
             io.Fonts->AddFontDefault(&cfg);
-
-            std::uint8_t *px;
-            int w, h;
-            io.Fonts->GetTexDataAsAlpha8(&px, &w, &h);
-
-            // Create new font atlas
-            GLuint tex;
-            glGenTextures(1, &tex);
-            glBindTexture(GL_TEXTURE_2D, tex);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_ALPHA, GL_UNSIGNED_BYTE, px);
-            io.Fonts->SetTexID(tex);
+            ImGui_ImplOpenGL3_CreateFontsTexture();
         }
 
         // Don't save window settings for the splash screen
@@ -548,8 +542,9 @@ namespace hex::init {
     void WindowSplash::loadAssets() {
 
         // Load splash screen image from romfs
-        this->m_splashBackgroundTexture = ImGuiExt::Texture::fromImage(romfs::get("splash_background.png").span(), ImGuiExt::Texture::Filter::Linear);
-        this->m_splashTextTexture = ImGuiExt::Texture::fromImage(romfs::get("splash_text.png").span(), ImGuiExt::Texture::Filter::Linear);
+        const auto backingScale = ImHexApi::System::getNativeScale() * ImHexApi::System::getBackingScaleFactor();
+        this->m_splashBackgroundTexture = ImGuiExt::Texture::fromSVG(romfs::get("splash_background.svg").span(), WindowSize.x * backingScale, WindowSize.y * backingScale, ImGuiExt::Texture::Filter::Linear);
+        this->m_splashTextTexture = ImGuiExt::Texture::fromSVG(romfs::get("splash_text.svg").span(), WindowSize.x * backingScale, WindowSize.y * backingScale, ImGuiExt::Texture::Filter::Linear);
 
         // If the image couldn't be loaded correctly, something went wrong during the build process
         // Close the application since this would lead to errors later on anyway.

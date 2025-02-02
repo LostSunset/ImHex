@@ -69,4 +69,10 @@ namespace hex {
      */
     EVENT_DEF(EventProjectOpened);
 
+    /**
+     * @brief Called when a native message was received from another ImHex instance
+     * @param rawData Raw bytes received from other instance
+     */
+    EVENT_DEF(EventNativeMessageReceived, std::vector<u8>);
+
 }
