@@ -184,7 +184,7 @@ namespace ImGuiExt {
     void StyleCustomColorsLight();
     void StyleCustomColorsClassic();
 
-    void SmallProgressBar(float fraction, float yOffset = 0.0F);
+    void ProgressBar(float fraction, ImVec2 size_value = ImVec2(0, 0), float yOffset = 0.0F);
 
     inline void TextFormatted(std::string_view fmt, auto &&...args) {
         if constexpr (sizeof...(args) == 0) {
@@ -201,6 +201,7 @@ namespace ImGuiExt {
         ImGui::PushID(text.c_str());
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0F);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4());
 
         ImGui::PushItemWidth(ImGui::CalcTextSize(text.c_str()).x + ImGui::GetStyle().FramePadding.x * 2);
@@ -208,7 +209,7 @@ namespace ImGuiExt {
         ImGui::PopItemWidth();
 
         ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(2);
 
         ImGui::PopID();
     }
@@ -247,6 +248,7 @@ namespace ImGuiExt {
         ImGui::PushID(text.c_str());
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0F);
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4());
 
         ImGui::PushItemWidth(ImGui::CalcTextSize(text.c_str()).x + ImGui::GetStyle().FramePadding.x * 2);
@@ -260,7 +262,7 @@ namespace ImGuiExt {
         ImGui::PopItemWidth();
 
         ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(2);
 
         ImGui::PopID();
     }
