@@ -7,6 +7,7 @@
 #include <hex/api/events/requests_lifecycle.hpp>
 #include <hex/api/events/requests_provider.hpp>
 #include <hex/api/events/requests_gui.hpp>
+#include <hex/api/events/events_interaction.hpp>
 
 #include <hex/api/task_manager.hpp>
 #include <hex/helpers/fmt.hpp>
@@ -648,17 +649,7 @@ namespace hex {
                     return std::midpoint(xScale, yScale);
                 }
             #elif defined(OS_WEB)
-                return MAIN_THREAD_EM_ASM_DOUBLE({
-                    try {
-                        if (navigator.platform === "MacIntel") {
-                            return 2.0;
-                        } else {
-                            return 1.0;
-                        }
-                    } catch (e) {
-                        return 1.0;
-                    }
-                });
+                return 1.0F;
             #else
                 return 1.0F;
             #endif
@@ -882,7 +873,8 @@ namespace hex {
 
         SemanticVersion getImHexVersion() {
             #if defined IMHEX_VERSION
-                return SemanticVersion(IMHEX_VERSION);
+                static auto version = SemanticVersion(IMHEX_VERSION);
+                return version;
             #else
                 return {};
             #endif

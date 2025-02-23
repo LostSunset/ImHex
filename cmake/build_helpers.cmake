@@ -381,6 +381,10 @@ endfunction()
 macro(configureCMake)
     message(STATUS "Configuring ImHex v${IMHEX_VERSION}")
 
+    if (DEFINED CMAKE_TOOLCHAIN_FILE)
+        message(STATUS "Using toolchain file: \"${CMAKE_TOOLCHAIN_FILE}\"")
+    endif()
+
     set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "Enable position independent code for all targets" FORCE)
 
     # Configure use of recommended build tools
@@ -629,11 +633,13 @@ endmacro()
 macro(setupCompilerFlags target)
     if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         addCommonFlag("/W4" ${target})
-        addCommonFlag("/wd4242" ${target})
-        addCommonFlag("/wd4244" ${target})
-        addCommonFlag("/wd4267" ${target})
-        addCommonFlag("/wd4996" ${target})
-        addCommonFlag("/wd4127" ${target})
+        addCommonFlag("/wd4127" ${target}) # conditional expression is constant
+        addCommonFlag("/wd4242" ${target}) # 'identifier': conversion from 'type1' to 'type2', possible loss of data
+        addCommonFlag("/wd4244" ${target}) # 'conversion': conversion from 'type1' to 'type2', possible loss of data
+        addCommonFlag("/wd4267" ${target}) # 'var': conversion from 'size_t' to 'type', possible loss of data
+        addCommonFlag("/wd4305" ${target}) # truncation from 'double' to 'float'
+        addCommonFlag("/wd4996" ${target}) # 'function': was declared deprecated
+        addCommonFlag("/wd5244" ${target}) # 'include' in the purview of module 'module' appears erroneous
 
         if (IMHEX_STRICT_WARNINGS)
             addCommonFlag("/WX" ${target})
@@ -659,6 +665,7 @@ macro(setupCompilerFlags target)
         addCCXXFlag("-Wno-array-bounds" ${target})
         addCCXXFlag("-Wno-deprecated-declarations" ${target})
         addCCXXFlag("-Wno-unknown-pragmas" ${target})
+        addCXXFlag("-Wno-include-angled-in-module-purview" ${target})
 
         # Enable hardening flags
         addCommonFlag("-U_FORTIFY_SOURCE" ${target})
@@ -795,8 +802,8 @@ macro(addBundledLibraries)
         add_subdirectory(${THIRD_PARTY_LIBS_FOLDER}/lunasvg EXCLUDE_FROM_ALL)
         set(LUNASVG_LIBRARIES lunasvg)
     else()
-        find_package(LunaSVG REQUIRED)
-        set(LUNASVG_LIBRARIES lunasvg)
+        find_package(lunasvg REQUIRED)
+        set(LUNASVG_LIBRARIES lunasvg::lunasvg)
     endif()
 
     if (NOT USE_SYSTEM_LLVM)
@@ -920,11 +927,17 @@ function(generateSDKDirectory)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/cmake/sdk/ DESTINATION "${SDK_PATH}")
     install(TARGETS libimhex ARCHIVE DESTINATION "${SDK_PATH}/lib")
 
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/plugins/ui DESTINATION "${SDK_PATH}/lib" PATTERN "**/source/*" EXCLUDE)
-    install(TARGETS ui ARCHIVE DESTINATION "${SDK_PATH}/lib")
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/plugins/ui/include DESTINATION "${SDK_PATH}/lib/ui/include")
+    install(FILES ${CMAKE_SOURCE_DIR}/plugins/ui/CMakeLists.txt DESTINATION "${SDK_PATH}/lib/ui/")
+    if (WIN32)
+        install(TARGETS ui ARCHIVE DESTINATION "${SDK_PATH}/lib")
+    endif()
 
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/plugins/fonts DESTINATION "${SDK_PATH}/lib" PATTERN "**/source/*" EXCLUDE)
-    install(TARGETS fonts ARCHIVE DESTINATION "${SDK_PATH}/lib")
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/plugins/fonts/include DESTINATION "${SDK_PATH}/lib/fonts/include")
+    install(FILES ${CMAKE_SOURCE_DIR}/plugins/fonts/CMakeLists.txt DESTINATION "${SDK_PATH}/lib/fonts/")
+    if (WIN32)
+        install(TARGETS fonts ARCHIVE DESTINATION "${SDK_PATH}/lib")
+    endif()
 endfunction()
 
 function(addIncludesFromLibrary target library)
