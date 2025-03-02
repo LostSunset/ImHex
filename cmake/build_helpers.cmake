@@ -329,6 +329,7 @@ macro(createPackage)
 
             install(FILES ${IMHEX_ICON} DESTINATION "${CMAKE_INSTALL_PREFIX}/${BUNDLE_NAME}/Contents/Resources")
             install(TARGETS main BUNDLE DESTINATION ".")
+            install(TARGETS updater BUNDLE DESTINATION ".")
 
             # Update library references to make the bundle portable
             postprocess_bundle(imhex_all main)
@@ -668,12 +669,15 @@ macro(setupCompilerFlags target)
         addCXXFlag("-Wno-include-angled-in-module-purview" ${target})
 
         # Enable hardening flags
-        addCommonFlag("-U_FORTIFY_SOURCE" ${target})
-        addCommonFlag("-D_FORTIFY_SOURCE=3" ${target})
+        if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+            addCommonFlag("-U_FORTIFY_SOURCE" ${target})
+            addCommonFlag("-D_FORTIFY_SOURCE=3" ${target})
 
-        if (NOT EMSCRIPTEN)
-            addCommonFlag("-fstack-protector-strong" ${target})
+            if (NOT EMSCRIPTEN)
+                addCommonFlag("-fstack-protector-strong" ${target})
+            endif()
         endif()
+
     endif()
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -825,7 +829,7 @@ macro(addBundledLibraries)
     endif()
 
     if (USE_SYSTEM_BOOST)
-        find_package(Boost REQUIRED)
+        find_package(Boost REQUIRED CONFIG COMPONENTS regex)
         set(BOOST_LIBRARIES Boost::regex)
     else()
         add_subdirectory(${THIRD_PARTY_LIBS_FOLDER}/boost ${CMAKE_CURRENT_BINARY_DIR}/boost EXCLUDE_FROM_ALL)
